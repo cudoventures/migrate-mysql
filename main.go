@@ -15,6 +15,9 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
+var defaultMySQLPort = 3306
+var defaultMySQLHost = "localhost"
+
 func main() {
 	var (
 		mysqlCA         string
@@ -44,13 +47,9 @@ func main() {
 		fs.StringVar(&mysqlUser, "mysql-user", "", "the user to use when connecting to MySQL")
 		fs.BoolVar(&noLock, "no-lock", false, "use no lock with migrate tool")
 
-		err := fs.Parse(os.Args[1:])
-		if err != nil {
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "could not parse flags: %v\n", err)
-				os.Exit(1)
-			}
-		}
+		// already set to exit on error
+		_ = fs.Parse(os.Args[1:])
+
 		if mysqlCA == "" {
 			mysqlCA = os.Getenv("MYSQL_CA")
 		}
@@ -64,19 +63,28 @@ func main() {
 			mysqlDatabase = os.Getenv("MYSQL_DATABASE")
 		}
 		if mysqlHost == "" {
-			mysqlHost = os.Getenv("MYSQL_HOST")
+			mysqlHostEnv, set := os.LookupEnv("MYSQL_HOST")
+			if set {
+				mysqlHost = mysqlHostEnv
+			} else {
+				mysqlHost = defaultMySQLHost
+			}
 		}
 		if mysqlPass == "" {
 			mysqlPass = os.Getenv("MYSQL_PASS")
 		}
 		if mysqlPort == 0 {
-			portEnv := os.Getenv("MYSQL_PORT")
-			port, err := strconv.Atoi(portEnv)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "could not set MYSQL_PORT to %s, expected integer\n", portEnv)
-				os.Exit(1)
+			portEnv, set := os.LookupEnv("MYSQL_PORT")
+			if set {
+				port, err := strconv.Atoi(portEnv)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "could not set MYSQL_PORT to %s, expected integer\n", portEnv)
+					os.Exit(1)
+				}
+				mysqlPort = port
+			} else {
+				mysqlPort = defaultMySQLPort
 			}
-			mysqlPort = port
 		}
 		if mysqlUser == "" {
 			mysqlUser = os.Getenv("MYSQL_USER")
@@ -95,7 +103,7 @@ func main() {
 
 	db, err := NewClient(mySQLClientConfig)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error connecting to MySQL: %v\n", err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 	defer db.Close()
@@ -106,7 +114,7 @@ func main() {
 		NoLock:          noLock,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error making migrator driver: %v\n", err)
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	m, err := migrate.NewWithDatabaseInstance(
@@ -117,16 +125,17 @@ func main() {
 	m.Log = &logger{}
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error making migrator: %v\n", err)
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 
 	commandParameters := fs.Args()
 
 	if len(commandParameters) < 1 {
-		fmt.Fprintf(os.Stderr, "expected command up/down/step/version\n")
+		fmt.Fprintln(os.Stderr, "expected command up/down/step/version")
 		return
 	}
+
 	var commandErr error
 	switch commandParameters[0] {
 	case "up":
@@ -136,23 +145,23 @@ func main() {
 	case "step":
 		stepsParam, err := strconv.Atoi(commandParameters[1])
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "step parameter must be an int\n")
+			fmt.Fprintln(os.Stderr, "step parameter must be an int")
 		}
 		commandErr = m.Steps(stepsParam)
 	case "version":
 		version, dirty, err := m.Version()
 		if err != nil {
 			if err == migrate.ErrNilVersion {
-				fmt.Printf("database not versioned\n")
+				fmt.Fprintln(os.Stderr, "database not versioned")
 			} else {
-				fmt.Fprintf(os.Stderr, "error getting version: %v\n", err)
+				fmt.Fprintln(os.Stderr, err)
 			}
 		}
 		fmt.Printf("database: %s, version: %v, dirty %v\n", mysqlDatabase, version, dirty)
 		return
 	}
 	if commandErr != nil {
-		fmt.Fprintf(os.Stderr, "error performing migration: %v\n", commandErr)
+		fmt.Fprintln(os.Stderr, commandErr)
 	}
 }
 
