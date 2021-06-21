@@ -1,5 +1,7 @@
 # migrate-mysql
 
+This was made because the formatting required to pass the DSN parameter to the golang-migrate tool is arduous for MySQL, especially if you want to connect using TLS. This tool uses a different convention of with environment variables and flags. Not all features of golang-migrate are available, only the basics.
+
 ## Usage
 
 ```
@@ -32,15 +34,31 @@ If the environment variables are not set, the following flags must be used inste
      the port to use when connecting to MySQL
   -mysql-user string
      the user to use when connecting to MySQL
+  -no-lock
+     use no lock flag with migrate tool
 
 The required flags are:
 
   -migrations-table string
      the table name to use for schema versioning (default "SchemaMigrations")
-  -no-lock
-     use no lock with migrate tool
   -path string
      the folder with the migrations in
 
 Not all of the features of the migrate tool are available yet.
+
+The accepted commands are:
+
+up - perform all up migrations
+down - perform all down migrations
+step [n] - perform n migration steps
+version - show the db version
+
+Sample usage:
+
+export MYSQL_DATABASE=test
+export MYSQL_PORT=3306
+export MYSQL_USER=root
+export MYSQL_HOST=localhost
+
+migrate-mysql -path ./migrations up
 ```
