@@ -15,8 +15,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
-var defaultMySQLPort = 3306
-var defaultMySQLHost = "localhost"
+var defaultMysqlSocketPath = "/var/run/mysqld/mysqld.sock"
 
 func main() {
 	var (
@@ -24,9 +23,13 @@ func main() {
 		mysqlClientKey  string
 		mysqlClientCert string
 		mysqlDatabase   string
+		mysqlDsn        string
+		mysqlDsnEmpty   bool
 		mysqlHost       string
 		mysqlPass       string
 		mysqlPort       int
+		mysqlPortEmpty  bool
+		mysqlSocket     string
 		mysqlUser       string
 		migrationsPath  string
 		migrationsTable string
@@ -37,14 +40,16 @@ func main() {
 	{
 		fs.StringVar(&migrationsPath, "path", "", "the folder with the migrations in")
 		fs.StringVar(&migrationsTable, "migrations-table", "SchemaMigrations", "the table name to use for schema versioning")
-		fs.StringVar(&mysqlCA, "mysql-ca", "", "MySQL TLS Certificate Authority, provide if you want to connect to MySQL with TLS")
-		fs.StringVar(&mysqlClientCert, "mysql-client-cert", "", "MySQL TLS Client Certificate, provide if you want to connect to MySQL with TLS")
-		fs.StringVar(&mysqlClientKey, "mysql-client-key", "", "MySQL TLS Client Key, provide if you want to connect to MySQL with TLS")
-		fs.StringVar(&mysqlDatabase, "mysql-database", "", "the database to use when connected to MySQL")
-		fs.StringVar(&mysqlHost, "mysql-host", "", "the host to use when connecting to MySQL")
-		fs.StringVar(&mysqlPass, "mysql-pass", "", "the password to use when connecting to MySQL")
-		fs.IntVar(&mysqlPort, "mysql-port", 0, "the port to use when connecting to MySQL")
-		fs.StringVar(&mysqlUser, "mysql-user", "", "the user to use when connecting to MySQL")
+		fs.StringVar(&mysqlCA, "server-ca", "", "MySQL TLS Certificate Authority, provide if you want to connect to MySQL with TLS")
+		fs.StringVar(&mysqlClientCert, "client-cert", "", "MySQL TLS Client Certificate, provide if you want to connect to MySQL with TLS")
+		fs.StringVar(&mysqlClientKey, "client-key", "", "MySQL TLS Client Key, provide if you want to connect to MySQL with TLS")
+		fs.StringVar(&mysqlDatabase, "database", "", "the database to use when connected to MySQL")
+		fs.StringVar(&mysqlDsn, "dsn", "", "the complete dsn to use when connecting to MySQL")
+		fs.StringVar(&mysqlHost, "host", "", "the host to use when connecting to MySQL")
+		fs.StringVar(&mysqlPass, "pass", "", "the password to use when connecting to MySQL")
+		fs.IntVar(&mysqlPort, "port", 0, "the port to use when connecting to MySQL")
+		fs.StringVar(&mysqlSocket, "sock", "", "the socket to use when connecting to MySQL")
+		fs.StringVar(&mysqlUser, "user", "", "the user to use when connecting to MySQL")
 		fs.BoolVar(&noLock, "no-lock", false, "use no lock with migrate tool")
 
 		// already set to exit on error
@@ -62,12 +67,17 @@ func main() {
 		if mysqlDatabase == "" {
 			mysqlDatabase = os.Getenv("MYSQL_DATABASE")
 		}
+		if mysqlDsn == "" {
+			mysqlDsnEnv, set := os.LookupEnv("MYSQL_DSN")
+			mysqlDsnEmpty = !set
+			if set {
+				mysqlDsn = mysqlDsnEnv
+			}
+		}
 		if mysqlHost == "" {
 			mysqlHostEnv, set := os.LookupEnv("MYSQL_HOST")
 			if set {
 				mysqlHost = mysqlHostEnv
-			} else {
-				mysqlHost = defaultMySQLHost
 			}
 		}
 		if mysqlPass == "" {
@@ -75,6 +85,7 @@ func main() {
 		}
 		if mysqlPort == 0 {
 			portEnv, set := os.LookupEnv("MYSQL_PORT")
+			mysqlPortEmpty = !set
 			if set {
 				port, err := strconv.Atoi(portEnv)
 				if err != nil {
@@ -82,23 +93,33 @@ func main() {
 					os.Exit(1)
 				}
 				mysqlPort = port
-			} else {
-				mysqlPort = defaultMySQLPort
 			}
 		}
 		if mysqlUser == "" {
 			mysqlUser = os.Getenv("MYSQL_USER")
 		}
+		if mysqlSocket == "" {
+			mysqlSocketEnv, set := os.LookupEnv("MYSQL_SOCK")
+			if set {
+				mysqlSocket = mysqlSocketEnv
+			} else {
+				mysqlSocket = defaultMysqlSocketPath
+			}
+		}
 	}
 	mySQLClientConfig := &ClientConfig{
-		User:       mysqlUser,
-		Pass:       mysqlPass,
-		Host:       mysqlHost,
-		Port:       mysqlPort,
-		Database:   mysqlDatabase,
-		ClientKey:  mysqlClientKey,
-		ClientCert: mysqlClientCert,
-		CA:         mysqlCA,
+		User:         mysqlUser,
+		Pass:         mysqlPass,
+		Host:         mysqlHost,
+		Port:         mysqlPort,
+		PortEmpty:    mysqlPortEmpty,
+		SocketPath:   mysqlSocket,
+		Database:     mysqlDatabase,
+		FullDsn:      mysqlDsn,
+		FullDsnEmpty: mysqlDsnEmpty,
+		ClientKey:    mysqlClientKey,
+		ClientCert:   mysqlClientCert,
+		CA:           mysqlCA,
 	}
 
 	db, err := NewClient(mySQLClientConfig)
@@ -176,51 +197,51 @@ func (l *logger) Verbose() bool {
 }
 
 type ClientConfig struct {
-	User       string
-	Pass       string
-	Host       string
-	Port       int
-	Database   string
-	ClientKey  string
-	ClientCert string
-	CA         string
+	User         string
+	Pass         string
+	Host         string
+	Port         int
+	PortEmpty    bool
+	Database     string
+	FullDsn      string
+	FullDsnEmpty bool
+	ServerName   string
+	SocketPath   string
+	ClientKey    string
+	ClientCert   string
+	CA           string
 }
 
-func (c *ClientConfig) SSLEnabled() bool {
-	return c.ClientKey != "" && c.ClientCert != "" && c.CA != ""
-}
-
-func (c *ClientConfig) DSN() string {
-	dsn := fmt.Sprintf(
-		"%s:%s@tcp(%s:%d)/%s",
-		c.User,
-		c.Pass,
-		c.Host,
-		c.Port,
-		c.Database,
-	)
-
-	dsnOpts := "?multiStatements=true"
-	if c.SSLEnabled() {
-		dsnOpts = dsnOpts + "&tls=custom"
+func (c *ClientConfig) MySQLConfig() (string, error) {
+	if !c.FullDsnEmpty {
+		dsn, err := mysql.ParseDSN(c.FullDsn)
+		if err != nil {
+			return "", err
+		}
+		return dsn.FormatDSN(), nil
 	}
-	dsn = dsn + dsnOpts
-
-	return dsn
-}
-
-func NewClient(cfg *ClientConfig) (*sql.DB, error) {
-	if cfg.SSLEnabled() {
+	cfg := mysql.NewConfig()
+	cfg.User = c.User
+	cfg.Passwd = c.Pass
+	if !c.PortEmpty {
+		cfg.Net = "tcp"
+		cfg.Addr = fmt.Sprintf("%s:%d", c.Host, c.Port)
+	} else {
+		cfg.Net = "unix"
+		cfg.Addr = c.SocketPath
+	}
+	cfg.DBName = c.Database
+	if c.SSLEnabled() {
 		rootCertPool := x509.NewCertPool()
 
-		if ok := rootCertPool.AppendCertsFromPEM([]byte(cfg.CA)); !ok {
-			return nil, fmt.Errorf("failed to append PEM.")
+		if ok := rootCertPool.AppendCertsFromPEM([]byte(c.CA)); !ok {
+			return "", fmt.Errorf("failed to append PEM.")
 		}
 
 		clientCert := make([]tls.Certificate, 0, 1)
-		certs, err := tls.X509KeyPair([]byte(cfg.ClientCert), []byte(cfg.ClientKey))
+		certs, err := tls.X509KeyPair([]byte(c.ClientCert), []byte(c.ClientKey))
 		if err != nil {
-			return nil, fmt.Errorf("failed to produce x509 keypair: %w", err)
+			return "", fmt.Errorf("failed to produce x509 keypair: %w", err)
 		}
 		clientCert = append(clientCert, certs)
 
@@ -230,11 +251,25 @@ func NewClient(cfg *ClientConfig) (*sql.DB, error) {
 			InsecureSkipVerify: true,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to configure mysql tls config: %w", err)
+			return "", fmt.Errorf("failed to register mysql tls config: %w", err)
 		}
+		cfg.TLSConfig = "custom"
 	}
+	cfg.MultiStatements = true
+	return cfg.FormatDSN(), nil
+}
 
-	db, err := sql.Open("mysql", cfg.DSN())
+func (c *ClientConfig) SSLEnabled() bool {
+	return c.ClientKey != "" && c.ClientCert != "" && c.CA != ""
+}
+
+func NewClient(cfg *ClientConfig) (*sql.DB, error) {
+
+	dsn, err := cfg.MySQLConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure mysql connection config: %w", err)
+	}
+	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to mysql: %w", err)
 	}
