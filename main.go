@@ -39,7 +39,7 @@ func main() {
 	fs := flag.NewFlagSet("migrate-mysql", flag.ExitOnError)
 	{
 		fs.StringVar(&migrationsPath, "path", "", "the folder with the migrations in")
-		fs.StringVar(&migrationsTable, "migrations-table", "SchemaMigrations", "the table name to use for schema versioning")
+		fs.StringVar(&migrationsTable, "migrations-table", "", "the table name to use for schema versioning")
 		fs.StringVar(&mysqlCA, "server-ca", "", "MySQL TLS Certificate Authority, provide if you want to connect to MySQL with TLS")
 		fs.StringVar(&mysqlClientCert, "client-cert", "", "MySQL TLS Client Certificate, provide if you want to connect to MySQL with TLS")
 		fs.StringVar(&mysqlClientKey, "client-key", "", "MySQL TLS Client Key, provide if you want to connect to MySQL with TLS")
