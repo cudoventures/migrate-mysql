@@ -163,6 +163,14 @@ func main() {
 		commandErr = m.Up()
 	case "down":
 		commandErr = m.Down()
+	case "drop":
+		commandErr = m.Drop()
+	case "force":
+		versionParam, err := strconv.Atoi(commandParameters[1])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "version parameter must be an int")
+		}
+		commandErr = m.Force(versionParam)
 	case "step":
 		stepsParam, err := strconv.Atoi(commandParameters[1])
 		if err != nil {
