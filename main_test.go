@@ -85,15 +85,15 @@ func TestGenerateDSNFromConfig(t *testing.T) {
 		Database:     "db",
 	}
 
-	expected := "user:pass@tcp(localhost:1234)/db?multiStatements=true"
-	dsn, err := cfg.MySQLConfig()
+	want := "user:pass@tcp(localhost:1234)/db?multiStatements=true"
+	got, err := cfg.MySQLConfig()
 
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
-	if dsn != expected {
-		t.Errorf("generated dsn unexpected, got: '%s' expected: '%s'", dsn, expected)
+	if got != want {
+		t.Errorf("generated dsn unexpected, got: %q want: %q", got, want)
 	}
 }
 
@@ -106,15 +106,15 @@ func TestGenerateDSNFromConfigNoPass(t *testing.T) {
 		Database:     "db",
 	}
 
-	expected := "user@tcp(localhost:1234)/db?multiStatements=true"
-	dsn, err := cfg.MySQLConfig()
+	want := "user@tcp(localhost:1234)/db?multiStatements=true"
+	got, err := cfg.MySQLConfig()
 
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
-	if dsn != expected {
-		t.Errorf("generated dsn unexpected, got: '%s' expected: '%s'", dsn, expected)
+	if got != want {
+		t.Errorf("generated dsn unexpected, got: %q want: %q", got, want)
 	}
 }
 
@@ -131,15 +131,15 @@ func TestGenerateDSNWithTLSFromConfig(t *testing.T) {
 		Database:     "db",
 	}
 
-	expected := "user:pass@tcp(localhost:1234)/db?multiStatements=true&tls=custom"
-	dsn, err := cfg.MySQLConfig()
+	want := "user:pass@tcp(localhost:1234)/db?multiStatements=true&tls=custom"
+	got, err := cfg.MySQLConfig()
 
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
-	if dsn != expected {
-		t.Errorf("generated dsn unexpected, got: '%s' expected: '%s'", dsn, expected)
+	if got != want {
+		t.Errorf("generated dsn unexpected, got: %q want: %q", got, want)
 	}
 }
 
@@ -148,15 +148,15 @@ func TestGenerateDSNWithDSN(t *testing.T) {
 		FullDsn: "user:pass@tcp(localhost:1234)/db?multiStatements=true",
 	}
 
-	expected := "user:pass@tcp(localhost:1234)/db?multiStatements=true"
-	dsn, err := cfg.MySQLConfig()
+	want := "user:pass@tcp(localhost:1234)/db?multiStatements=true"
+	got, err := cfg.MySQLConfig()
 
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
-	if dsn != expected {
-		t.Errorf("generated dsn unexpected, got: '%s' expected: '%s'", dsn, expected)
+	if got != want {
+		t.Errorf("generated dsn unexpected, got: %q want: %q", got, want)
 	}
 }
 
@@ -169,15 +169,15 @@ func TestGenerateDSNWithDSNWithTLS(t *testing.T) {
 		PortEmpty:  true,
 	}
 
-	expected := "user:pass@tcp(localhost:1234)/db?multiStatements=true&tls=custom"
-	dsn, err := cfg.MySQLConfig()
+	want := "user:pass@tcp(localhost:1234)/db?multiStatements=true&tls=custom"
+	got, err := cfg.MySQLConfig()
 
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
-	if dsn != expected {
-		t.Errorf("generated dsn unexpected, got: '%s' expected: '%s'", dsn, expected)
+	if got != want {
+		t.Errorf("generated dsn unexpected, got: %q want: %q", got, want)
 	}
 }
 
@@ -191,15 +191,15 @@ func TestGenerateDSNWithUDS(t *testing.T) {
 		SocketPath:   "/var/run/socket.sock",
 	}
 
-	expected := "user:pass@unix(/var/run/socket.sock)/db?multiStatements=true"
-	dsn, err := cfg.MySQLConfig()
+	want := "user:pass@unix(/var/run/socket.sock)/db?multiStatements=true"
+	got, err := cfg.MySQLConfig()
 
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
-	if dsn != expected {
-		t.Errorf("generated dsn unexpected, got: '%s' expected: '%s'", dsn, expected)
+	if got != want {
+		t.Errorf("generated dsn unexpected, got: %q want: %q", got, want)
 	}
 }
 
@@ -216,15 +216,15 @@ func TestGenerateDSNWithUDSWithTLS(t *testing.T) {
 		ClientCert:   clientCert,
 	}
 
-	expected := "user:pass@unix(/var/run/socket.sock)/db?multiStatements=true&tls=custom"
-	dsn, err := cfg.MySQLConfig()
+	want := "user:pass@unix(/var/run/socket.sock)/db?multiStatements=true&tls=custom"
+	got, err := cfg.MySQLConfig()
 
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
-	if dsn != expected {
-		t.Errorf("generated dsn unexpected, got: '%s' expected: '%s'", dsn, expected)
+	if got != want {
+		t.Errorf("generated dsn unexpected, got: %q want: %q", got, want)
 	}
 }
 
@@ -237,15 +237,15 @@ func TestGenerateDSNWithUDSNoPass(t *testing.T) {
 		SocketPath:   "/var/run/socket.sock",
 	}
 
-	expected := "user@unix(/var/run/socket.sock)/db?multiStatements=true"
-	dsn, err := cfg.MySQLConfig()
+	want := "user@unix(/var/run/socket.sock)/db?multiStatements=true"
+	got, err := cfg.MySQLConfig()
 
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
-	if dsn != expected {
-		t.Errorf("generated dsn unexpected, got: '%s' expected: '%s'", dsn, expected)
+	if got != want {
+		t.Errorf("generated dsn unexpected, got: %q; want: %q", got, want)
 	}
 }
 
@@ -257,14 +257,14 @@ func TestGenerateDSNWithUDSDefaults(t *testing.T) {
 		User:         "user",
 	}
 
-	expected := "user@unix(/var/run/mysqld/mysqld.sock)/db?multiStatements=true"
-	dsn, err := cfg.MySQLConfig()
+	want := "user@unix(/var/run/mysqld/mysqld.sock)/db?multiStatements=true"
+	got, err := cfg.MySQLConfig()
 
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
-	if dsn != expected {
-		t.Errorf("generated dsn unexpected, got: '%s' expected: '%s'", dsn, expected)
+	if got != want {
+		t.Errorf("generated dsn unexpected, got: %q; want: %q", got, want)
 	}
 }

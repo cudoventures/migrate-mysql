@@ -236,7 +236,11 @@ func (c *ClientConfig) MySQLConfig() (string, error) {
 		cfg.Addr = fmt.Sprintf("%s:%d", c.Host, c.Port)
 	} else {
 		cfg.Net = "unix"
-		cfg.Addr = c.SocketPath
+		socketPath := c.SocketPath
+		if socketPath == "" {
+			socketPath = defaultMysqlSocketPath
+		}
+		cfg.Addr = socketPath
 	}
 	cfg.DBName = c.Database
 	if c.SSLEnabled() {
